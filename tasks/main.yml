@@ -1,0 +1,23 @@
+---
+
+- name: Edit firewalld for Cadvisor port
+  firewalld:
+    port: "{{ cadvisor_publish_port }}/tcp"
+    permanent: true
+    state: enabled
+  notify: restart firewalld
+
+- name: Start cadvisor
+  docker:
+    image: "{{ cadvisor_image_name }}"
+    name: "{{ cadvisor_container_name }}"
+    privileged: yes
+    restart_policy: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /var/log/syslog:/var/log/syslog 
+    ports:
+      - "{{ cadvisor_publish_port }}:8080"
