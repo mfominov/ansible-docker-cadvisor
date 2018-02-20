@@ -1,5 +1,6 @@
 ---
 
+env: "develop"
 cadvisor_publish_port: "9200"
 cadvisor_container_name: "cadvisor"
 cadvisor_image_name: "google/cadvisor:latest"
