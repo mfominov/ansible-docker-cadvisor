@@ -8,21 +8,52 @@
       permanent: true
       state: enabled
     notify: restart firewalld
+    when: ansible_os_family != "Container Linux by CoreOS"
 
-  when: env == "develop" and ansible_os_family != "Container Linux by CoreOS"
+  - name: Start cadvisor
+    docker_container:
+      image: "{{ cadvisor_image_name }}"
+      name: "{{ cadvisor_container_name }}"
+      privileged: yes
+      restart_policy: unless-stopped
+      volumes:
+        - /:/rootfs:ro
+        - /var/run:/var/run:rw
+        - /sys:/sys:ro
+        - /u01/docker/:/u01/docker:ro
+        - /var/log/syslog:/var/log/syslog
+        - /dev/disk/:/dev/disk:ro
+      ports:
+        - "{{ cadvisor_publish_port }}:8080"
 
-- name: Start cadvisor
-  docker_container:
-    image: "{{ cadvisor_image_name }}"
-    name: "{{ cadvisor_container_name }}"
-    privileged: yes
-    restart_policy: unless-stopped
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:rw
-      - /sys:/sys:ro
-      - /u01/docker/:/u01/docker:ro
-      - /var/log/syslog:/var/log/syslog
-      - /dev/disk/:/dev/disk:ro
-    ports:
-      - "{{ cadvisor_publish_port }}:8080"
+  when: env == "develop"
+
+- block:
+
+  - name: Start cadvisor
+    docker_container:
+      image: "{{ cadvisor_image_name }}"
+      name: "{{ cadvisor_container_name }}"
+      privileged: yes
+      restart_policy: unless-stopped
+      volumes:
+        - /:/rootfs:ro
+        - /var/run:/var/run:rw
+        - /sys:/sys:ro
+        - /u01/docker/:/u01/docker:ro
+        - /var/log/syslog:/var/log/syslog
+        - /dev/disk/:/dev/disk:ro
+      ports:
+        - "127.0.0.1:8080:8080"
+
+  - name: Copy nginx configs
+    copy: 
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+    with_items:
+      - { src: cadvisor_exporter.conf, dest: /etc/nginx/default.d/cadvisor_exporter.conf }
+      - { src: cadvisor_upstream.conf, dest: /etc/nginx/conf.d/cadvisor_upstream.conf }
+    notify: restart nginx
+
+  when:
+    - env == "production"
